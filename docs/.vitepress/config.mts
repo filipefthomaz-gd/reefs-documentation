@@ -6,7 +6,7 @@ export default defineConfig({
   base: '/reefs-documentation/',
 
   head: [
-    ['link', { rel: 'icon', type: 'image/png', href: '/flow-documentation/favicon.png' }]
+    ['link', { rel: 'icon', type: 'image/png', href: '/reefs-documentation/favicon.png' }]
   ],
 
   themeConfig: {
