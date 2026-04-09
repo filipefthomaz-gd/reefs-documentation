@@ -5,6 +5,10 @@ export default defineConfig({
   description: 'A reactive query language for the OCEAN blackboard system',
   base: '/reefs-documentation/',
 
+  head: [
+    ['link', { rel: 'icon', type: 'image/png', href: '/flow-documentation/favicon.png' }]
+  ],
+
   themeConfig: {
     logo: '/logo.svg',
 
