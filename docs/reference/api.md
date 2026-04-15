@@ -44,6 +44,55 @@ Blackboard keys that functions in this query declare as hidden dependencies (via
 
 ---
 
+## IncrementalEvaluator
+
+```csharp
+namespace Reefs.QL.Evaluation
+
+public class IncrementalEvaluator
+```
+
+Dependency-aware, cached evaluator. Only sub-trees that depend on a changed blackboard key are re-evaluated; unaffected sub-trees return their cached result immediately. Suited for reactive pipelines where blackboard keys change one at a time.
+
+### Constructor
+
+```csharp
+new IncrementalEvaluator(QueryExpr root)
+```
+
+Builds the dependency map for the entire AST. Pass `null` for an empty query — `Seed` and `Evaluate` both return `true` in that case.
+
+### Methods
+
+```csharp
+bool Seed(IEvalContext ctx)
+```
+Full evaluation. Walks every node and populates the result cache. **Call once after construction**, before any incremental updates begin.
+
+```csharp
+bool Evaluate(string changedKey, IEvalContext ctx)
+```
+Incremental evaluation. Only nodes whose dependency set contains `changedKey` are re-evaluated; all other nodes return their cached result. Updates the cache for every re-evaluated node.
+
+### COUNT state
+
+`IncrementalEvaluator` maintains its own persistent `COUNT` state internally. Rising-edge counters accumulate across all `Seed` and `Evaluate` calls for the lifetime of the instance — the same semantics as `QuerySession`.
+
+### Example
+
+```csharp
+var session = new QuerySession("EmissionA > 2 && COUNT(Phase = \"boss\") >= 3");
+var evaluator = new IncrementalEvaluator(session.Ast);
+
+// Seed the cache once
+bool initial = evaluator.Seed(ctx);
+
+// Later, only EmissionA changed — only the EmissionA sub-tree is re-evaluated
+bool updated = evaluator.Evaluate("EmissionA", ctx);
+```
+
+---
+
 ## IEvalContext
 
 ```csharp
