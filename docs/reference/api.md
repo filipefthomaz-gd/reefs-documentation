@@ -24,13 +24,14 @@ Parses the query string and stores the AST. Throws `ArgumentNullException` if `q
 |----------|------|-------------|
 | `Query` | `string` | The original query string |
 | `Ast` | `QueryExpr?` | The parsed AST. Null when query is empty. |
+| `NextScheduledEvaluationTime` | `double?` | Next time at which a windowed result may change. Null if no windowed expressions. |
 
 ### Methods
 
 ```csharp
 bool Evaluate(IEvalContext ctx)
 ```
-Synchronous evaluation against the provided context. Returns `true` for empty queries.
+Synchronous evaluation against the provided context. Returns `true` for empty queries. After each call, `NextScheduledEvaluationTime` is updated.
 
 ```csharp
 IReadOnlyList<string> GetReferencedKeys()
@@ -72,11 +73,22 @@ Full evaluation. Walks every node and populates the result cache. **Call once af
 ```csharp
 bool Evaluate(string changedKey, IEvalContext ctx)
 ```
-Incremental evaluation. Only nodes whose dependency set contains `changedKey` are re-evaluated; all other nodes return their cached result. Updates the cache for every re-evaluated node.
+Incremental evaluation. Only nodes whose dependency set contains `changedKey` are re-evaluated; all other nodes return their cached result.
 
-### COUNT state
+```csharp
+bool EvaluateTime(IEvalContext ctx)
+```
+Time-triggered evaluation. Only windowed sub-trees are re-evaluated. Call when the clock reaches `NextScheduledTime`.
 
-`IncrementalEvaluator` maintains its own persistent `COUNT` state internally. Rising-edge counters accumulate across all `Seed` and `Evaluate` calls for the lifetime of the instance — the same semantics as `QuerySession`.
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `NextScheduledTime` | `double?` | Next time at which a windowed node may change state. Null if no windowed expressions. |
+
+### COUNT and windowed state
+
+`IncrementalEvaluator` maintains its own persistent `COUNT` and windowed interval state internally. Both accumulate across all calls for the lifetime of the instance.
 
 ### Example
 
@@ -109,33 +121,58 @@ Implement this to connect any blackboard to the evaluator. The Unity implementat
 | `GetHistory(string key)` | Full ordered history (oldest first). Used by `WAS`. |
 | `GetCollection(string key)` | Current list values for a key. Used by `CONTAINS`. |
 | `ResolveFunction(string name, object[] args)` | Resolve a custom function call. Returns a boxed `bool` or comparable value. |
-| `GetFunctionDependencies(string name, object[] args)` | Blackboard keys a function reads internally. Return empty if none. Default implementation returns empty. |
+| `GetFunctionDependencies(string name, object[] args)` | Blackboard keys a function reads internally. Default returns empty. |
+| `GetCurrentTime()` | Current time as opaque `double?`. Default returns `null`. Required for windowed expressions. |
+
+---
+
+## IWindowedEvalContext
+
+```csharp
+namespace Reefs.QL.Evaluation
+
+public interface IWindowedEvalContext : IEvalContext
+```
+
+Extends `IEvalContext` for contexts that support windowed expressions. `SimpleEvalContext` implements this by default.
+
+| Method | Description |
+|--------|-------------|
+| `GetTimestampedHistory(string key)` | History entries with timestamps, oldest first. |
+| `ResolveDuration(double value, string unit)` | Converts a duration literal to time units. E.g. `"h"` → `3600.0` in real-time. |
 
 ---
 
 ## SimpleEvalContext
 
 ```csharp
-namespace ReefQL.Runtime
+namespace Reefs.QL.Runtime
 
-public class SimpleEvalContext : IEvalContext
+public class SimpleEvalContext : IWindowedEvalContext
 ```
 
-In-memory context for tests and prototypes. No history or collection support beyond what you set explicitly.
+In-memory context for tests and prototypes. Implements `IWindowedEvalContext` — windowed queries work out of the box.
 
 ```csharp
 var ctx = new SimpleEvalContext();
-ctx.Set("EmissionA", 5);
-ctx.Set("IsAlive", true);
+ctx.Set("A", 10);
+ctx.SetTime(0.0);
 
-bool result = session.Evaluate(ctx);
+var session = new QuerySession("{A > 5}|[3,]");
+session.Evaluate(ctx); // opens interval at t=0
+
+ctx.SetTime(5.0);
+bool result = session.Evaluate(ctx); // true — A > 5 for 5 time units
 ```
 
 | Method | Description |
 |--------|-------------|
-| `Set(string key, object value)` | Set a scalar value |
-| `SetHistory(string key, IEnumerable<object> values)` | Set the history list for WAS queries |
-| `SetCollection(string key, IEnumerable<object> values)` | Set the collection for CONTAINS queries |
+| `Set(string key, object value)` | Set a scalar value and append to timestamped history |
+| `SetTime(double time)` | Advance the current time |
+| `AddToCollection(string key, object item)` | Add an item to a collection key |
+| `RemoveFromCollection(string key, object item)` | Remove an item from a collection key |
+| `SetFunctionResolver(Func<string, object[], object>)` | Register a custom function handler |
+| `SetDurationResolver(Func<double, string, double>)` | Override the default `s/m/h/d/ms` duration unit mapping |
 
 ---
 

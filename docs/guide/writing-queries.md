@@ -212,6 +212,75 @@ COUNT(Health < 20 && IsAlive = True) >= 2
 
 ---
 
+## Windowed expressions — time constraints
+
+Wrap any condition in `{...}|[Lo, Hi]` to add a time constraint. Requires the context to implement `IWindowedEvalContext` and a valid time source.
+
+### Duration mode
+
+The inner condition must be *continuously* true for a duration within `[Lo, Hi]`:
+
+```
+{Health < 20}|[3,]        // in critical health for at least 3 time units
+{A > 5}|[3, 10]           // A > 5 for between 3 and 10 time units
+{IsStunned = True}|[,5]   // stunned for at most 5 time units
+```
+
+Bounds use the same inclusive/exclusive syntax as `IN`:
+
+```
+{A > 5}|[3, 10)   // 3 ≤ duration < 10
+```
+
+### Window mode — LAST and NOW
+
+Check whether the condition was true at *any point* within a sliding time window:
+
+```
+{Phase = "combat"}|LAST 4h              // in combat at any point in the last 4 hours
+{A > 5}|[NOW - 30, NOW]                 // was true in the last 30 time units
+{Health < 20}|[NOW - 1h, NOW - 10m]     // was critical between 10 min and 1 h ago
+```
+
+`LAST 4h` is shorthand for `[NOW - 4h, NOW]` inclusive.
+
+### Duration literals
+
+Unit suffixes are resolved by the context. The default mapping in `SimpleEvalContext` is:
+
+| Suffix | Default value |
+|--------|--------------|
+| `ms` | 0.001 s |
+| `s` | 1 s |
+| `m` | 60 s |
+| `h` | 3 600 s |
+| `d` | 86 400 s |
+
+Multiple units chain without spaces: `1d2h30m`.
+
+For game time or tick-based time, provide a custom `SetDurationResolver()` on your context.
+
+### Performance
+
+Windowed expressions do **not** re-evaluate on every time tick. After each `Evaluate()` call, `QuerySession.NextScheduledEvaluationTime` tells the reactive layer when to re-evaluate next:
+
+```csharp
+// On blackboard key change — always re-evaluate
+void OnKeyChanged(string key) => session.Evaluate(ctx);
+
+// On time tick — only re-evaluate when a boundary is crossed
+void OnTick(double currentTime) {
+    if (session.NextScheduledEvaluationTime is double t && currentTime >= t)
+        session.Evaluate(ctx);
+}
+```
+
+::: tip State model
+A windowed interval opens the moment `Evaluate()` is called with the inner condition true. For accurate durations, call `Evaluate()` immediately after setting relevant blackboard keys — not just on time ticks.
+:::
+
+---
+
 ## Functions
 
 A custom function can appear as an operand anywhere a key name could:
@@ -260,4 +329,16 @@ COUNT(Health < 20) > 1 && IsAlive = True
 
 // Effective damage after reduction, using arithmetic
 (BaseDamage - Armor) * 2 > HealthThreshold
+
+// Stunned for at least 3 seconds
+{IsStunned = True}|[3,]
+
+// Was in combat at any point in the last 10 minutes
+{Phase = "combat"}|LAST 10m
+
+// In critical health for exactly 2–5 seconds (alarm window)
+{Health < 20}|[2, 5]
+
+// Boss fight lasted between 30s and 2 minutes
+{Phase = "boss"}|[30s, 2m]
 ```

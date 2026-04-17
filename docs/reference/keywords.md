@@ -173,6 +173,66 @@ COUNT(Health < 20) >= 5 && IsAlive = True
 
 ---
 
+## Windowed expressions {#windowed}
+
+```
+{Condition}|[Lo, Hi]
+{Condition}|[Lo,]
+{Condition}|[,Hi]
+{Condition}|LAST Duration
+```
+
+Constrains a condition with a time boundary. Requires the context to implement `IWindowedEvalContext`.
+
+Two modes, depending on whether bounds contain `NOW`:
+
+**Duration mode** — how long the inner condition has been *continuously* true:
+
+```
+{A > 5}|[3, 10]       // A > 5 for between 3 and 10 time units
+{A > 5}|[3,]          // A > 5 for at least 3 time units
+{Health < 20}|[,5]    // Health < 20 for at most 5 time units
+```
+
+**Window mode** — whether the inner condition was true at *any point* within an absolute time range:
+
+```
+{A > 5}|LAST 4h                    // was true at any point in the last 4 hours
+{Phase = "combat"}|[NOW - 10, NOW] // was true in the last 10 time units
+```
+
+`LAST Duration` is sugar for `[NOW - Duration, NOW]` (inclusive both ends).
+
+**Duration literals** — unit suffixes are game-defined via `IWindowedEvalContext.ResolveDuration`. The default mapping in `SimpleEvalContext` is: `ms` = 0.001 s, `s` = 1 s, `m` = 60 s, `h` = 3 600 s, `d` = 86 400 s. Multiple units chain: `1d2h` = 1 day + 2 hours.
+
+**Bracket rules** — same inclusive/exclusive syntax as `IN`:
+
+```
+{A > 5}|[3, 10]    // 3 ≤ duration ≤ 10
+{A > 5}|(3, 10)    // 3 < duration < 10
+{A > 5}|[3, 10)    // 3 ≤ duration < 10
+```
+
+**Scheduled re-evaluation** — after each `Evaluate()` call, `QuerySession.NextScheduledEvaluationTime` returns the next time at which a windowed result may change. The reactive layer should call `Evaluate()` again when the clock reaches that value, instead of re-evaluating on every tick.
+
+**State model** — a windowed interval opens the moment `Evaluate()` is first called with the inner condition true. For accurate results, call `Evaluate()` whenever any relevant blackboard key changes.
+
+---
+
+## NOW {#now}
+
+```
+NOW
+```
+
+Resolves to `IEvalContext.GetCurrentTime()` at evaluation time. Used only inside windowed expression bounds:
+
+```
+{A > 5}|[NOW - 30, NOW]
+```
+
+---
+
 ## True / False
 
 ```

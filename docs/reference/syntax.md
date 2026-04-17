@@ -197,6 +197,38 @@ Counts rising-edge (false → true) activations of the inner condition. The coun
 
 ---
 
+## Windowed expressions
+
+```
+{Condition}|[Lo, Hi]
+{Condition}|[Lo,]
+{Condition}|LAST Duration
+{Condition}|[NOW - Duration, NOW]
+```
+
+Wraps any condition with a time constraint. Requires `IWindowedEvalContext`.
+
+```
+{A > 5}|[3, 10]              // continuously true for 3..10 time units
+{A > 5}|[3,]                 // true for at least 3 time units
+{A > 5}|LAST 4h              // was true at any point in the last 4 hours
+{Phase = "combat"}|[NOW - 30, NOW]
+```
+
+Duration literals use unit suffixes: `4h`, `30m`, `1d`, `500ms`. Multiple units chain: `1d2h`. See [Windowed expressions](/reference/keywords#windowed).
+
+---
+
+## NOW
+
+Resolves to the current time inside windowed bounds:
+
+```
+{A > 5}|[NOW - 10, NOW]
+```
+
+---
+
 ## Functions
 
 ```
@@ -221,6 +253,7 @@ Expr      = LogicExpr | Term
 LogicExpr = Term ('&&' | '||') Expr
 Term      = '!' Term
            | '(' Expr ')'
+           | '{' Expr '}' '|' WindowSuffix
            | WasExpr
            | ChangedExpr
            | ChangedToExpr
@@ -258,4 +291,11 @@ CountExpr    = 'COUNT' '(' Expr ')'
 FunctionCall = Identifier '(' [Operand {',' Operand}] ')'
 Literal      = Number | String | Boolean
 Op           = '=' | '==' | '!=' | '>' | '<' | '>=' | '<='
+
+WindowSuffix = 'LAST' DurationSum
+             | ('[' | '(') [Bound] ',' [Bound] (']' | ')')
+Bound        = 'NOW' ['+' | '-' DurationSum]
+             | Operand
+DurationSum  = DurationLiteral { DurationLiteral }
+DurationLiteral = Number UnitSuffix  // e.g. 4h, 30m, 1d, 500ms (no space)
 ```
