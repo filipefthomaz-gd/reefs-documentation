@@ -21,10 +21,13 @@ export default defineConfig({
       {
         text: 'Guide',
         items: [
-          { text: 'Getting Started',     link: '/guide/getting-started' },
-          { text: 'Writing Queries',     link: '/guide/writing-queries' },
-          { text: 'Observers & Modes',   link: '/guide/observers' },
-          { text: 'Unity Integration',   link: '/guide/unity-integration' },
+          { text: 'Getting Started',       link: '/guide/getting-started' },
+          { text: 'Writing Queries',       link: '/guide/writing-queries' },
+          { text: 'Temporal Queries',      link: '/guide/temporal-queries' },
+          { text: 'Windowed Queries',      link: '/guide/windowed-queries' },
+          { text: 'Observers & Modes',     link: '/guide/observers' },
+          { text: 'Incremental Evaluation', link: '/guide/incremental-evaluation' },
+          { text: 'Unity Integration',     link: '/guide/unity-integration' },
         ],
       },
       {

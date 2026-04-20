@@ -20,8 +20,6 @@ Health WAS < 20
 
 **Works with:** `=`, `!=`, `>`, `<`, `>=`, `<=`.
 
----
-
 ## CONTAINS {#contains}
 
 ```
@@ -40,8 +38,6 @@ Inventory CONTAINS "RustedKey"
 **Collection source:** `IEvalContext.GetCollection(key)` — provided by `BlackboardEvalContext` from `IBlackboard.ReadList<object>(key)`.
 
 Values in the set can be literals or key names (resolved to their current blackboard value at evaluation time).
-
----
 
 ## IN / NOT IN {#in}
 
@@ -74,8 +70,6 @@ A IN [MinVal, MaxVal]
 Score IN [Base * 2, Base * 4]
 ```
 
----
-
 ## CHANGED {#changed}
 
 ```
@@ -90,8 +84,6 @@ Phase CHANGED
 ```
 
 **History source:** Reads the last two values from `IEvalContext.GetHistory(key)`. Returns `false` if fewer than two history entries exist.
-
----
 
 ## CHANGED TO {#changed-to-changed-from}
 
@@ -108,8 +100,6 @@ Alert CHANGED TO True
 
 **History source:** Reads the last two values from `IEvalContext.GetHistory(key)`. Returns `false` if the key has no prior value.
 
----
-
 ## CHANGED FROM
 
 ```
@@ -122,8 +112,6 @@ Fires `true` for one evaluation tick when `Key` transitions **away from** `Value
 Phase CHANGED FROM "idle"
 IsAlive CHANGED FROM True
 ```
-
----
 
 ## INCREASED / DECREASED {#increased-decreased}
 
@@ -147,8 +135,6 @@ Health DECREASED BY 25
 
 **Note:** `INCREASED` and `DECREASED` are strictly directional — equal values return `false`.
 
----
-
 ## COUNT {#count}
 
 ```
@@ -171,34 +157,32 @@ COUNT(Health < 20) >= 5 && IsAlive = True
 
 **Return type:** Integer, comparable with `=`, `!=`, `>`, `<`, `>=`, `<=`.
 
----
-
 ## Windowed expressions {#windowed}
 
 ```
-{Condition}|[Lo, Hi]
-{Condition}|[Lo,]
-{Condition}|[,Hi]
-{Condition}|LAST Duration
+Condition @ [Lo, Hi]
+Condition @ [Lo,]
+Condition @ [,Hi]
+Condition @ LAST Duration
 ```
 
-Constrains a condition with a time boundary. Requires the context to implement `IWindowedEvalContext`.
+Constrains a condition with a time boundary. Requires the context to implement `IWindowedEvalContext`. For compound inner conditions, wrap them in parentheses: `(A > 5 && B < 10) @ [3,]`.
 
 Two modes, depending on whether bounds contain `NOW`:
 
 **Duration mode** — how long the inner condition has been *continuously* true:
 
 ```
-{A > 5}|[3, 10]       // A > 5 for between 3 and 10 time units
-{A > 5}|[3,]          // A > 5 for at least 3 time units
-{Health < 20}|[,5]    // Health < 20 for at most 5 time units
+A > 5 @ [3, 10]       // A > 5 for between 3 and 10 time units
+A > 5 @ [3,]          // A > 5 for at least 3 time units
+Health < 20 @ [,5]    // Health < 20 for at most 5 time units
 ```
 
 **Window mode** — whether the inner condition was true at *any point* within an absolute time range:
 
 ```
-{A > 5}|LAST 4h                    // was true at any point in the last 4 hours
-{Phase = "combat"}|[NOW - 10, NOW] // was true in the last 10 time units
+A > 5 @ LAST 4h                    // was true at any point in the last 4 hours
+Phase = "combat" @ [NOW - 10, NOW] // was true in the last 10 time units
 ```
 
 `LAST Duration` is sugar for `[NOW - Duration, NOW]` (inclusive both ends).
@@ -208,16 +192,14 @@ Two modes, depending on whether bounds contain `NOW`:
 **Bracket rules** — same inclusive/exclusive syntax as `IN`:
 
 ```
-{A > 5}|[3, 10]    // 3 ≤ duration ≤ 10
-{A > 5}|(3, 10)    // 3 < duration < 10
-{A > 5}|[3, 10)    // 3 ≤ duration < 10
+A > 5 @ [3, 10]    // 3 ≤ duration ≤ 10
+A > 5 @ (3, 10)    // 3 < duration < 10
+A > 5 @ [3, 10)    // 3 ≤ duration < 10
 ```
 
 **Scheduled re-evaluation** — after each `Evaluate()` call, `QuerySession.NextScheduledEvaluationTime` returns the next time at which a windowed result may change. The reactive layer should call `Evaluate()` again when the clock reaches that value, instead of re-evaluating on every tick.
 
 **State model** — a windowed interval opens the moment `Evaluate()` is first called with the inner condition true. For accurate results, call `Evaluate()` whenever any relevant blackboard key changes.
-
----
 
 ## NOW {#now}
 
@@ -228,10 +210,8 @@ NOW
 Resolves to `IEvalContext.GetCurrentTime()` at evaluation time. Used only inside windowed expression bounds:
 
 ```
-{A > 5}|[NOW - 30, NOW]
+A > 5 @ [NOW - 30, NOW]
 ```
-
----
 
 ## True / False
 

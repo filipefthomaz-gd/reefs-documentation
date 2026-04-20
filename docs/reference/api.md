@@ -43,8 +43,6 @@ IReadOnlyList<string> GetFunctionDependencyKeys(IEvalContext ctx)
 ```
 Blackboard keys that functions in this query declare as hidden dependencies (via `IQueryFunction.GetDependencies`). Combined with `GetReferencedKeys()`, gives the full subscription set for a RealTime observer.
 
----
-
 ## IncrementalEvaluator
 
 ```csharp
@@ -54,6 +52,8 @@ public class IncrementalEvaluator
 ```
 
 Dependency-aware, cached evaluator. Only sub-trees that depend on a changed blackboard key are re-evaluated; unaffected sub-trees return their cached result immediately. Suited for reactive pipelines where blackboard keys change one at a time.
+
+See [Incremental Evaluation](/guide/incremental-evaluation) for a full usage guide.
 
 ### Constructor
 
@@ -103,8 +103,6 @@ bool initial = evaluator.Seed(ctx);
 bool updated = evaluator.Evaluate("EmissionA", ctx);
 ```
 
----
-
 ## IEvalContext
 
 ```csharp
@@ -124,8 +122,6 @@ Implement this to connect any blackboard to the evaluator. The Unity implementat
 | `GetFunctionDependencies(string name, object[] args)` | Blackboard keys a function reads internally. Default returns empty. |
 | `GetCurrentTime()` | Current time as opaque `double?`. Default returns `null`. Required for windowed expressions. |
 
----
-
 ## IWindowedEvalContext
 
 ```csharp
@@ -140,8 +136,6 @@ Extends `IEvalContext` for contexts that support windowed expressions. `SimpleEv
 |--------|-------------|
 | `GetTimestampedHistory(string key)` | History entries with timestamps, oldest first. |
 | `ResolveDuration(double value, string unit)` | Converts a duration literal to time units. E.g. `"h"` → `3600.0` in real-time. |
-
----
 
 ## SimpleEvalContext
 
@@ -158,7 +152,7 @@ var ctx = new SimpleEvalContext();
 ctx.Set("A", 10);
 ctx.SetTime(0.0);
 
-var session = new QuerySession("{A > 5}|[3,]");
+var session = new QuerySession("A > 5 @ [3,]");
 session.Evaluate(ctx); // opens interval at t=0
 
 ctx.SetTime(5.0);
@@ -173,8 +167,6 @@ bool result = session.Evaluate(ctx); // true — A > 5 for 5 time units
 | `RemoveFromCollection(string key, object item)` | Remove an item from a collection key |
 | `SetFunctionResolver(Func<string, object[], object>)` | Register a custom function handler |
 | `SetDurationResolver(Func<double, string, double>)` | Override the default `s/m/h/d/ms` duration unit mapping |
-
----
 
 ## IQueryObserver
 
@@ -196,8 +188,6 @@ Returned by `QueryStore.Get`. Do not construct directly.
 | `Evaluate()` | Force a re-evaluation. Returns the new state. |
 | `Dispose()` | Cancel all RealTime subscriptions. No-op for Trigger observers. |
 
----
-
 ## QueryStore
 
 ```csharp
@@ -216,8 +206,6 @@ void Clear()
 
 `Get` creates and initialises the observer on first access; subsequent calls with the same key return the cached instance. `Clear` disposes all observers and emits `OnClear`.
 
----
-
 ## ReefQLProvider
 
 ```csharp
@@ -232,8 +220,6 @@ Static accessor. Resets on every `AfterSceneLoad`.
 BlackboardEvalContext Get()     // The shared IEvalContext
 QueryStore GetStore()           // The shared observer cache
 ```
-
----
 
 ## IQueryData
 
@@ -250,8 +236,6 @@ string Query { get; }
 QueryEvaluateMode EvaluateMode { get; }
 ```
 
----
-
 ## QueryEvaluateMode
 
 ```csharp
@@ -264,8 +248,6 @@ public enum QueryEvaluateMode
 |-------|-------------|
 | `RealTime` | Observer subscribes to referenced keys. Re-evaluates automatically on any change. |
 | `Trigger` | No subscriptions. Call `Evaluate()` manually. |
-
----
 
 ## IQueryFunction
 
@@ -288,8 +270,6 @@ IEnumerable<string> GetDependencies(object[] args);
 | `Name` | The function name as used in queries, e.g. `"ThreatScore"` |
 | `Evaluate(args)` | Compute and return the function's value |
 | `GetDependencies(args)` | Blackboard keys this function reads internally — used for RealTime subscription coverage |
-
----
 
 ## BlackboardEvalContext
 

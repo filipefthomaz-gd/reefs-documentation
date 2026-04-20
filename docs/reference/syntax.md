@@ -2,8 +2,6 @@
 
 A Reefs query is a plain-text boolean expression. Queries are case-insensitive for keywords and key names, but string literals are case-sensitive.
 
----
-
 ## Comparisons
 
 ```
@@ -29,8 +27,6 @@ Either side can be a key name, a literal, a function call, or an arithmetic expr
 | `>=` | Greater than or equal |
 | `<=` | Less than or equal |
 
----
-
 ## Logic
 
 ```
@@ -42,8 +38,6 @@ A || B        // either must be true
 
 Parentheses control precedence. `&&` binds tighter than `||` without them.
 
----
-
 ## Existence
 
 ```
@@ -53,8 +47,6 @@ HasKey
 
 A bare key name with no operator is an existence/truthy check.
 
----
-
 ## Literals
 
 | Type | Examples |
@@ -63,8 +55,6 @@ A bare key name with no operator is an existence/truthy check.
 | Integer | `42`, `-5`, `0` |
 | Float | `1.5`, `0.75` |
 | String | `"idle"`, `"combat"` |
-
----
 
 ## Arithmetic
 
@@ -76,8 +66,6 @@ Health - Damage <= 0
 ```
 
 The four operators `+`, `-`, `*`, `/` are supported. `*` and `/` bind tighter than `+` and `-`. Parentheses can be used inside an arithmetic context. Division by zero returns `null` (the comparison evaluates to `false`).
-
----
 
 ## WAS
 
@@ -92,8 +80,6 @@ Phase WAS = "boss"
 
 Latches `true` once the condition has been satisfied in the key's history. Stays true for the lifetime of the session. See [WAS](/reference/keywords#was).
 
----
-
 ## CHANGED
 
 ```
@@ -106,8 +92,6 @@ Phase CHANGED
 ```
 
 Fires `true` for one evaluation tick when the value changes to anything different. Requires at least two history entries. See [CHANGED](/reference/keywords#changed).
-
----
 
 ## CHANGED TO / CHANGED FROM
 
@@ -122,8 +106,6 @@ Phase CHANGED FROM "idle"
 ```
 
 Ephemeral — fires `true` for one evaluation tick during a value transition. Reads the last two history entries. See [CHANGED TO / CHANGED FROM](/reference/keywords#changed-to-changed-from).
-
----
 
 ## INCREASED / DECREASED
 
@@ -142,8 +124,6 @@ Score INCREASED BY 5
 
 Fires `true` for one tick when the numeric value moves in the specified direction. The `BY` form requires an exact delta match. See [INCREASED / DECREASED](/reference/keywords#increased-decreased).
 
----
-
 ## CONTAINS
 
 ```
@@ -157,8 +137,6 @@ ActiveEffects CONTAINS {"Burn", "Freeze"}
 ```
 
 Tests whether a list-type blackboard key holds the given value(s). Multi-value form requires all values to be present. See [CONTAINS](/reference/keywords#contains).
-
----
 
 ## IN / NOT IN
 
@@ -180,8 +158,6 @@ Distance IN (0, 10)
 
 Set membership or numeric interval test. `[`/`]` are inclusive bounds, `(`/`)` are exclusive. Bounds can be key names or arithmetic expressions. See [IN / NOT IN](/reference/keywords#in).
 
----
-
 ## COUNT
 
 ```
@@ -195,39 +171,34 @@ COUNT(Phase = "combat") > 0
 
 Counts rising-edge (false → true) activations of the inner condition. The counter accumulates for the lifetime of the session. See [COUNT](/reference/keywords#count).
 
----
-
 ## Windowed expressions
 
 ```
-{Condition}|[Lo, Hi]
-{Condition}|[Lo,]
-{Condition}|LAST Duration
-{Condition}|[NOW - Duration, NOW]
+Condition @ [Lo, Hi]
+Condition @ [Lo,]
+Condition @ LAST Duration
+Condition @ [NOW - Duration, NOW]
 ```
 
-Wraps any condition with a time constraint. Requires `IWindowedEvalContext`.
+Constrains a condition with a time boundary. Requires `IWindowedEvalContext`. For compound inner conditions, wrap them in parentheses:
 
 ```
-{A > 5}|[3, 10]              // continuously true for 3..10 time units
-{A > 5}|[3,]                 // true for at least 3 time units
-{A > 5}|LAST 4h              // was true at any point in the last 4 hours
-{Phase = "combat"}|[NOW - 30, NOW]
+A > 5 @ [3, 10]                          // continuously true for 3..10 time units
+A > 5 @ [3,]                             // true for at least 3 time units
+A > 5 @ LAST 4h                          // was true at any point in the last 4 hours
+Phase = "combat" @ [NOW - 30, NOW]       // was true in the last 30 time units
+(Health < 20 && IsAlive = True) @ [3,]   // compound condition, 3+ time units
 ```
 
 Duration literals use unit suffixes: `4h`, `30m`, `1d`, `500ms`. Multiple units chain: `1d2h`. See [Windowed expressions](/reference/keywords#windowed).
-
----
 
 ## NOW
 
 Resolves to the current time inside windowed bounds:
 
 ```
-{A > 5}|[NOW - 10, NOW]
+A > 5 @ [NOW - 10, NOW]
 ```
-
----
 
 ## Functions
 
@@ -243,8 +214,6 @@ IsInRange(TargetId) = True
 
 Used as an operand anywhere a key name could appear. Arguments can be literals or key names.
 
----
-
 ## Full grammar (informal)
 
 ```
@@ -253,7 +222,7 @@ Expr      = LogicExpr | Term
 LogicExpr = Term ('&&' | '||') Expr
 Term      = '!' Term
            | '(' Expr ')'
-           | '{' Expr '}' '|' WindowSuffix
+           | Expr '@' WindowSuffix
            | WasExpr
            | ChangedExpr
            | ChangedToExpr

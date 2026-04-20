@@ -15,8 +15,6 @@ IQueryObserver             QueryObserver   (wraps QuerySession + R3 subs)
 
 The DLL knows nothing about Unity. `BlackboardEvalContext` is the only place that bridges the two sides.
 
----
-
 ## ReefQLProvider
 
 Static accessor for the global context and store. Reset automatically on every scene load:
@@ -32,8 +30,6 @@ QueryStore store = ReefQLProvider.GetStore();
 ::: warning Lifecycle
 `ReefQLProvider` initialises `AfterSceneLoad`, after `BlackboardProvider` which initialises `BeforeSceneLoad`. Never cache the result of `Get()` or `GetStore()` across scene loads — always read from `ReefQLProvider` at point of use.
 :::
-
----
 
 ## QueryStore
 
@@ -54,8 +50,6 @@ The store calls `observer.Init()` on first access, which seeds the initial state
 ```csharp
 QueryStore store = QueryStoreProvider.QueryStore();
 ```
-
----
 
 ## IQueryData
 
@@ -83,8 +77,6 @@ public class QueryAsset : ScriptableObject, IQueryData
 }
 ```
 
----
-
 ## BlackboardEvalContext
 
 `BlackboardEvalContext` implements `IEvalContext` by reading from `IBlackboard`:
@@ -98,8 +90,6 @@ public class QueryAsset : ScriptableObject, IQueryData
 | `SubscribeToKey(key, onChange)` | `blackboard.OnAnyWrite` (R3 observable) |
 
 You do not construct `BlackboardEvalContext` directly — use `ReefQLProvider.Get()`.
-
----
 
 ## Custom functions {#custom-functions}
 
@@ -137,8 +127,6 @@ ThreatScore(CurrentTarget) >= 8
 ::: tip GetDependencies
 Always implement `GetDependencies` if your function reads blackboard keys internally. Without it, a RealTime observer won't subscribe to those keys and won't re-evaluate when they change.
 :::
-
----
 
 ## QueryObserver lifecycle
 
